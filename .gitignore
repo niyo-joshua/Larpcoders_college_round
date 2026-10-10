@@ -1,0 +1,31 @@
+# Node & Frontend
+node_modules/
+dist/
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Python & Backend
+.venv/
+backend/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+backend/__pycache__/
+backend/*/__pycache__/
+backend/*/*/__pycache__/
+.pytest_cache/
+backend/.pytest_cache/
+backend/incognito.db
+*.db
+backend/.env
+
+# Environment & Secret files
+.env
+*.local
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
