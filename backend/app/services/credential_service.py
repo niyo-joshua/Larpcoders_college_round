@@ -1,8 +1,9 @@
-from datetime import datetime
+import random
+from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from app.models import Member, Credential
+from app.models import Member, Credential, PhoneVerification
 from app.security.passwords import verify_password
 from app.security.tokens import (
     new_random_tag,
@@ -21,6 +22,119 @@ from app.security.blind_signatures import (
 
 class CredentialError(Exception):
     pass
+
+
+def normalize_phone(phone: str) -> str:
+    return phone.strip()
+
+
+def send_phone_verification_code(db: Session, phone_number: str) -> dict:
+    """
+    Generate and persist a 6-digit verification OTP for the provided phone number.
+    In development/demo mode, returns demo_otp for immediate testing.
+    """
+    clean_phone = normalize_phone(phone_number)
+    if len(clean_phone) < 7:
+        raise CredentialError("Please enter a valid phone number.")
+
+    # Generate 6-digit OTP
+    otp_code = f"{random.randint(100000, 999999)}"
+
+    # Save to database with 10-minute validity
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    verification = PhoneVerification(
+        phone_number=clean_phone,
+        otp_code=otp_code,
+        expires_at=expires_at,
+        is_verified=False,
+    )
+    db.add(verification)
+    db.commit()
+
+    return {
+        "message": f"Verification code sent to {clean_phone}.",
+        "demo_otp": otp_code,
+        "phone_number": clean_phone,
+    }
+
+
+def verify_phone_otp(db: Session, phone_number: str, otp_code: str) -> tuple[str, int]:
+    """
+    Validates phone number and OTP code.
+    Issues a signed one-time credential for filing a report.
+    Returns (signed_credential_token, expires_in_seconds).
+    """
+    clean_phone = normalize_phone(phone_number)
+    clean_otp = otp_code.strip()
+
+    stmt = (
+        select(PhoneVerification)
+        .where(
+            PhoneVerification.phone_number == clean_phone,
+            PhoneVerification.otp_code == clean_otp,
+            PhoneVerification.expires_at >= datetime.utcnow(),
+        )
+        .order_by(PhoneVerification.created_at.desc())
+    )
+    record = db.execute(stmt).scalars().first()
+    if not record:
+        raise CredentialError("Invalid or expired verification code. Please check your SMS code or request a new one.")
+
+    record.is_verified = True
+
+    tag = new_random_tag()
+    expires_at = datetime.utcnow() + ttl_delta()
+    cred = Credential(
+        tag_hash=sha256_hex(tag),
+        expires_at=expires_at,
+        issued_at=datetime.utcnow(),
+        is_blind=False,
+    )
+    db.add(cred)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise CredentialError("Credential issuance conflict. Try again.")
+
+    token = build_signed_credential(tag, expires_at)
+    return token, int(ttl_delta().total_seconds())
+
+
+def issue_blind_signature_with_phone(db: Session, phone_number: str, otp_code: str, blinded_message: str) -> dict:
+    """
+    Issues an RSA Blind Signature after verifying the phone number and OTP.
+    """
+    clean_phone = normalize_phone(phone_number)
+    clean_otp = otp_code.strip()
+
+    stmt = (
+        select(PhoneVerification)
+        .where(
+            PhoneVerification.phone_number == clean_phone,
+            PhoneVerification.otp_code == clean_otp,
+            PhoneVerification.expires_at >= datetime.utcnow(),
+        )
+        .order_by(PhoneVerification.created_at.desc())
+    )
+    record = db.execute(stmt).scalars().first()
+    if not record:
+        raise CredentialError("Invalid or expired verification code.")
+
+    record.is_verified = True
+    db.commit()
+
+    try:
+        blinded_sig = blind_sign_message(blinded_message)
+    except Exception as e:
+        raise CredentialError(f"Blind signature generation failed: {str(e)}")
+
+    params = get_public_key_params()
+    return {
+        "blinded_signature": blinded_sig,
+        "n": params["n"],
+        "e": params["e"],
+    }
 
 
 def redeem_eligibility_code(db: Session, eligibility_code: str) -> tuple[str, int]:

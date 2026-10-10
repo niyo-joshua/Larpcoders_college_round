@@ -86,6 +86,8 @@ def submit_report(db: Session, payload: dict) -> dict:
         effective_severity = "critical"
 
     flags_str = ",".join(mod_result["flags"]) if mod_result["flags"] else ""
+    reporter_phone = payload.get("reporter_phone")
+    clean_phone = reporter_phone.strip() if reporter_phone and isinstance(reporter_phone, str) else None
 
     report = Report(
         company_name=company_name,
@@ -104,6 +106,7 @@ def submit_report(db: Session, payload: dict) -> dict:
         intervention_reason="Automated safety escalation: Critical incident signals flagged during ingestion." if mod_result["requires_intervention"] else "",
         whistleblower_safety_level="protected_escrow",
         moderator_note="",
+        reporter_phone=clean_phone,
         filed_at=now,
         updated_at=now,
     )
@@ -121,7 +124,9 @@ def submit_report(db: Session, payload: dict) -> dict:
         "is_spam": False,
         "harm_score": report.harm_score,
         "harm_flags": mod_result["flags"],
+        "reporter_phone": report.reporter_phone,
     }
+
 
 
 def track_report(db: Session, report_id: str, tracking_secret: str) -> dict:

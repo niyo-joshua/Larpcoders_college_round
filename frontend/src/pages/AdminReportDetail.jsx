@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { AdminLayout } from '../components/Layout.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import { api } from '../api/client.js';
+import { useAdminAuth } from '../hooks/useAdminAuth.jsx';
 import {
   ArrowLeft,
   Building2,
@@ -16,8 +17,11 @@ import {
   Save,
   CheckCircle2,
   Sparkles,
-  Info
+  Info,
+  Phone,
+  UserCheck
 } from 'lucide-react';
+
 
 const STATUS_OPTIONS = [
   { value: 'received', label: 'Received' },
@@ -28,11 +32,15 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AdminReportDetail() {
+  const { user } = useAdminAuth();
+  const isModerator = user?.role === 'moderator';
+
   const { id } = useParams();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
 
   // Editable fields
   const [status, setStatus] = useState('received');
@@ -158,7 +166,39 @@ export default function AdminReportDetail() {
                     {report.description}
                   </div>
                 </div>
+
+                {/* Whistleblower Contact Information (Moderator Clearance) */}
+                <div className="pt-2">
+                  {isModerator ? (
+                    <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/80 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                          <Phone className="w-4 h-4 text-emerald-600" />
+                          Verified Submitter Contact (Moderator Clearance)
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 font-semibold">
+                          CLEARANCE: MODERATOR
+                        </span>
+                      </div>
+                      <div className="text-base font-bold font-mono text-emerald-900 dark:text-emerald-200">
+                        {report.reporter_phone || 'No phone number provided'}
+                      </div>
+                      <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                        Moderator Authority: You have clearance to contact this employee directly regarding incident escalation or emergency inquiry.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                      <div className="flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-slate-400" />
+                        <span>Submitter contact phone is masked. Clearance restricted to designated Moderator accounts.</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400 uppercase">Admin Role</span>
+                    </div>
+                  )}
+                </div>
               </div>
+
 
               {/* Automated AI / Threat Detection & Harm Analysis */}
               <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 shadow-sm space-y-4">

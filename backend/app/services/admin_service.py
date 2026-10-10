@@ -22,6 +22,7 @@ def list_reports(
     status: str | None = None,
     category: str | None = None,
     company: str | None = None,
+    requesting_admin: AdminUser | None = None,
 ) -> list[dict]:
     stmt = select(Report)
     if status:
@@ -32,15 +33,18 @@ def list_reports(
         stmt = stmt.where(Report.company_name == company)
     stmt = stmt.order_by(Report.filed_at.desc())
     rows = db.execute(stmt).scalars().all()
-    return [_ombudsman_view(r) for r in rows]
+    is_moderator = (requesting_admin.role == "moderator") if requesting_admin else False
+    return [_ombudsman_view(r, is_moderator=is_moderator) for r in rows]
 
 
-def get_report(db: Session, report_id: str) -> dict:
+def get_report(db: Session, report_id: str, requesting_admin: AdminUser | None = None) -> dict:
     stmt = select(Report).where(Report.id == report_id)
     r = db.execute(stmt).scalar_one_or_none()
     if r is None:
         raise AdminError("Report not found.")
-    return _ombudsman_view(r)
+    is_moderator = (requesting_admin.role == "moderator") if requesting_admin else False
+    return _ombudsman_view(r, is_moderator=is_moderator)
+
 
 
 def update_report(db: Session, admin: AdminUser, report_id: str, patch: dict) -> dict:
@@ -127,8 +131,12 @@ def get_analytics(db: Session) -> dict:
     }
 
 
-def _ombudsman_view(r: Report) -> dict:
-    """Full confidential view for independent Ombudsman investigator."""
+def _ombudsman_view(r: Report, is_moderator: bool = False) -> dict:
+    """
+    Full confidential view for independent Ombudsman investigator.
+    Only users with role == 'moderator' are permitted to see reporter_phone.
+    Admins and corporate reviewers have reporter_phone masked.
+    """
     flags_list = [f.strip() for f in r.harm_flags.split(",") if f.strip()] if r.harm_flags else []
     return {
         "id": r.id,
@@ -148,4 +156,6 @@ def _ombudsman_view(r: Report) -> dict:
         "intervention_reason": r.intervention_reason or "",
         "whistleblower_safety_level": r.whistleblower_safety_level or "protected_escrow",
         "moderator_note": r.moderator_note or "",
+        "reporter_phone": r.reporter_phone if is_moderator else None,
     }
+

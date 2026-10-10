@@ -102,8 +102,8 @@ export default function Landing() {
                 Absolute Whistleblower Shield
               </h3>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Your personal identity is never stored in the database. Even if the platform or the company’s servers
-                are audited or compelled, there is zero cryptographic link between your membership code and the report filed.
+                Your mobile phone number is strictly encrypted in escrow and accessible solely to assigned Ombudsman Moderators.
+                Company management and external administrators cannot view your identity or phone number.
               </p>
             </div>
           </div>
@@ -113,15 +113,16 @@ export default function Landing() {
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
           {[
             {
-              icon: UserCheck,
-              t: 'Anonymous Membership Check',
-              d: 'Eligibility codes prove you belong to the organization without revealing your identity.',
+              icon: Phone,
+              t: 'Secure Mobile Verification',
+              d: 'One-time SMS codes verify real submitters while guarding phone numbers securely in escrow.',
             },
             {
               icon: EyeOff,
               t: 'Chaum Blind Signatures',
               d: 'Mathematical blinding guarantees the issuance authority cannot recognize your submission token.',
             },
+
             {
               icon: FileCheck2,
               t: 'Duplicate & Spam Prevention',

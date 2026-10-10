@@ -49,40 +49,47 @@ export default function SecurityDemo() {
   // 1. Test Chaum Blind Signature Issuance and Submission
   async function testBlindSignature() {
     setBusy(true);
-    append('Initiating Chaum RSA Blind Signature flow…', 'info');
+    append('Initiating Chaum RSA Blind Signature flow with verified phone…', 'info');
     try {
-      append('1. Requesting Ombudsman RSA public modulus and exponent (n, e)…');
+      const testPhone = '+1 (555) 019-2834';
+      append(`1. Requesting SMS verification code for mobile number: ${testPhone}…`);
+      const otpRes = await api.sendOtp(testPhone);
+      append(`   Received verification OTP: ${otpRes.demo_otp}`);
+
+      append('2. Requesting Ombudsman RSA public modulus and exponent (n, e)…');
       const pubParams = await api.getBlindPublicKey();
       append(`   Public modulus: n=${pubParams.n.slice(0, 16)}… (2048-bit RSA)`);
 
-      append('2. Blinding client-side random ticket tag locally with random factor r…');
+      append('3. Blinding client-side random ticket tag locally with blinding factor r…');
       const ticketTag = 'demo_ticket_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
       const { blindedMessageHex, rHex } = await blindMessage(ticketTag, pubParams.n, pubParams.e);
       append(`   Blinded ticket: ${blindedMessageHex.slice(0, 24)}…`);
 
-      append('3. Submitting blinded message with eligibility code STU-7K2Q-9P4M…');
+      append('4. Requesting blind signature from authority with verified phone OTP…');
       const blindRes = await api.blindSign({
-        eligibility_code: 'STU-7K2Q-9P4M',
+        phone_number: testPhone,
+        otp_code: otpRes.demo_otp,
         blinded_message: blindedMessageHex,
       });
 
-      append('4. Unblinding Ombudsman signature locally using r^(-1) mod n…');
+      append('5. Unblinding Ombudsman signature locally using r^(-1) mod n…');
       const unblindedSig = unblindSignature(blindRes.blinded_signature, rHex, pubParams.n);
       append(`   Unblinded signature obtained: ${unblindedSig.slice(0, 24)}…`);
 
-      append('5. Submitting report using unblinded ticket tag & signature…');
+      append('6. Submitting report using unblinded ticket tag & signature…');
       const res = await api.submitReport({
         blind_tag: ticketTag,
         blind_signature: unblindedSig,
+        reporter_phone: testPhone,
         company_name: 'Acme Technologies',
         category: 'workplace',
         title: 'Cryptographic Blind Signature Verification Test',
-        description: 'Demonstrating mathematical unlinkability via Chaum RSA blind signatures.',
+        description: 'Demonstrating mathematical unlinkability via Chaum RSA blind signatures with phone verification.',
         severity: 'low',
       });
 
       append(`✔ SUCCESS: Report accepted into escrow! ID: ${res.report_id.slice(0, 8)}…`, 'success');
-      append('   Ombudsman verified validity without ever seeing the ticket or linking it to member code!', 'success');
+      append('   Ombudsman verified validity without ever seeing the ticket or linking it to phone number!', 'success');
     } catch (err) {
       append(`✘ FAILED: ${err.message}`, 'error');
     } finally {
@@ -95,12 +102,15 @@ export default function SecurityDemo() {
     setBusy(true);
     append('Testing single-use credential replay resistance…', 'info');
     try {
-      append('1. Redeeming single-use credential for code STU-7K2Q-9P4M…');
-      const { credential } = await api.redeemEligibility('STU-7K2Q-9P4M');
+      const testPhone = '+1 (555) 014-8821';
+      append(`1. Verifying mobile line: ${testPhone}…`);
+      const otpRes = await api.sendOtp(testPhone);
+      const { credential } = await api.verifyOtp({ phone_number: testPhone, otp_code: otpRes.demo_otp });
 
-      append('2. Submitting legitimate first report with credential…');
+      append('2. Submitting legitimate first report with single-use credential…');
       const res1 = await api.submitReport({
         credential,
+        reporter_phone: testPhone,
         company_name: 'Acme Technologies',
         category: 'safety',
         title: 'Replay Test: First Legitimate Use',
@@ -113,6 +123,7 @@ export default function SecurityDemo() {
       try {
         await api.submitReport({
           credential,
+          reporter_phone: testPhone,
           company_name: 'Acme Technologies',
           category: 'safety',
           title: 'Replay Test: Malicious Duplicate Attempt',
@@ -139,7 +150,8 @@ export default function SecurityDemo() {
       const fixedDesc = 'Conveyor belt speed governor fails intermittently, creating severe pinch hazards for floor staff.';
 
       append('1. Submitting first incident report…');
-      const { credential: cred1 } = await api.redeemEligibility('STU-7K2Q-9P4M');
+      const otp1 = await api.sendOtp('+1 (555) 019-2834');
+      const { credential: cred1 } = await api.verifyOtp({ phone_number: '+1 (555) 019-2834', otp_code: otp1.demo_otp });
       await api.submitReport({
         credential: cred1,
         company_name: 'Apex Logistics',
@@ -151,7 +163,8 @@ export default function SecurityDemo() {
       append('   First incident recorded successfully.');
 
       append('2. Submitting duplicate report with same incident fingerprint to Apex Logistics…');
-      const { credential: cred2 } = await api.redeemEligibility('EMP-4H8J-2N6R');
+      const otp2 = await api.sendOtp('+1 (555) 017-9932');
+      const { credential: cred2 } = await api.verifyOtp({ phone_number: '+1 (555) 017-9932', otp_code: otp2.demo_otp });
       try {
         await api.submitReport({
           credential: cred2,
@@ -177,10 +190,14 @@ export default function SecurityDemo() {
     setBusy(true);
     append('Testing automated spam filtering and threat scoring…', 'info');
     try {
-      append('1. Submitting sample report containing critical fraud and safety keywords…');
-      const { credential } = await api.redeemEligibility('CORP-SAFE-2026');
+      append('1. Verifying reporter phone for incident submission…');
+      const otpRes = await api.sendOtp('+1 (555) 014-8821');
+      const { credential } = await api.verifyOtp({ phone_number: '+1 (555) 014-8821', otp_code: otpRes.demo_otp });
+
+      append('2. Submitting sample report containing critical fraud and safety keywords…');
       const res = await api.submitReport({
         credential,
+        reporter_phone: '+1 (555) 014-8821',
         company_name: 'Global Finance Corp',
         category: 'financial',
         title: 'Severe corporate embezzlement and forged compliance logs',
@@ -198,6 +215,7 @@ export default function SecurityDemo() {
       setBusy(false);
     }
   }
+
 
   return (
     <PublicLayout>

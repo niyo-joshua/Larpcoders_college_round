@@ -68,9 +68,23 @@ class Report(Base):
     whistleblower_safety_level: Mapped[str] = mapped_column(String(32), default="protected_escrow")
     moderator_note: Mapped[str] = mapped_column(Text, default="")
 
+    # Whistleblower verified contact (accessible strictly to moderator, shielded from admin & company)
+    reporter_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
     # Accurate timestamps
     filed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PhoneVerification(Base):
+    __tablename__ = "phone_verifications"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    phone_number: Mapped[str] = mapped_column(String(32), index=True)
+    otp_code: Mapped[str] = mapped_column(String(6))
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class AdminUser(Base):

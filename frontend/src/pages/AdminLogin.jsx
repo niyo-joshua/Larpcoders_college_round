@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PublicLayout } from '../components/Layout.jsx';
 import { api } from '../api/client.js';
 import { useAdminAuth } from '../hooks/useAdminAuth.jsx';
-import { Lock, ShieldCheck, KeyRound, AlertCircle, ArrowRight } from 'lucide-react';
+import { Lock, ShieldCheck, KeyRound, AlertCircle, ArrowRight, UserCheck } from 'lucide-react';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -22,15 +22,20 @@ export default function AdminLogin() {
       login(data.token, data.user || { username });
       navigate('/admin', { replace: true });
     } catch (err) {
-      setError(err.message || 'Invalid administrator credentials.');
+      setError(err.message || 'Invalid credentials.');
     } finally {
       setLoading(false);
     }
   }
 
-  function fillDemoCredentials() {
+  function fillAdmin() {
     setUsername('admin');
     setPassword('incognito123');
+  }
+
+  function fillModerator() {
+    setUsername('moderator');
+    setPassword('moderator123');
   }
 
   return (
@@ -41,10 +46,10 @@ export default function AdminLogin() {
             <Lock className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Ombudsman Escrow Login
+            Escrow Authority & Moderation
           </h1>
           <p className="mt-1.5 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-            Secure administrative portal for independent ombudsman inquiry, harmful content moderation, and corporate briefings.
+            Sign in as an Administrator (reports oversight) or as a Moderator (direct liaison with access to verified reporter phone numbers).
           </p>
         </div>
 
@@ -52,13 +57,13 @@ export default function AdminLogin() {
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Ombudsman Identifier
+                Username / Identifier
               </label>
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
-                placeholder="e.g. admin"
+                placeholder="e.g. admin or moderator"
                 className="w-full rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all font-mono"
               />
             </div>
@@ -103,17 +108,46 @@ export default function AdminLogin() {
             </button>
           </form>
 
-          {/* Quick Demo Fill */}
-          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-            <span className="text-slate-500">Ombudsman demo credentials:</span>
-            <button
-              type="button"
-              onClick={fillDemoCredentials}
-              className="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline flex items-center gap-1"
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Fill admin demo</span>
-            </button>
+          {/* Quick Demo Credentials */}
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Quick demo accounts (click to fill):
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={fillAdmin}
+                className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:border-emerald-500 text-left transition-colors"
+              >
+                <div className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-1">
+                  <KeyRound className="w-3 h-3 text-emerald-500" />
+                  <span>Admin Login</span>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                  admin / incognito123
+                </div>
+                <div className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+                  (Phone numbers masked)
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={fillModerator}
+                className="p-2.5 rounded-xl border border-emerald-300/60 dark:border-emerald-700/60 bg-emerald-50/50 dark:bg-emerald-950/20 hover:border-emerald-500 text-left transition-colors"
+              >
+                <div className="text-xs font-semibold text-emerald-900 dark:text-emerald-300 flex items-center gap-1">
+                  <UserCheck className="w-3 h-3 text-emerald-500" />
+                  <span>Moderator Login</span>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                  moderator / moderator123
+                </div>
+                <div className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium mt-1">
+                  (Can see employee phones)
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -58,22 +58,23 @@ def list_all(
     category: str = "",
     company: str = "",
     db: Session = Depends(get_db),
-    _: AdminUser = Depends(require_admin),
+    admin: AdminUser = Depends(require_admin),
 ):
     """Ombudsman full view of all encrypted escrow reports."""
-    return list_reports(db, status=status or None, category=category or None, company=company or None)
+    return list_reports(db, status=status or None, category=category or None, company=company or None, requesting_admin=admin)
 
 
 @router.get("/reports/{report_id}", response_model=ReportView)
 def get_one(
     report_id: str,
     db: Session = Depends(get_db),
-    _: AdminUser = Depends(require_admin),
+    admin: AdminUser = Depends(require_admin),
 ):
     try:
-        return get_report(db, report_id)
+        return get_report(db, report_id, requesting_admin=admin)
     except AdminError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
 
 
 @router.patch("/reports/{report_id}", response_model=ReportView)

@@ -65,26 +65,42 @@ export const api = {
 
   getCompanies: () => request('/api/reports/companies'),
 
-  // Classic signed token flow
-  redeemEligibility: (eligibility_code) =>
-    request('/api/credentials/redeem', {
+  // Phone SMS OTP flow
+  sendOtp: (phone_number) =>
+    request('/api/credentials/send-otp', {
       method: 'POST',
-      body: { eligibility_code },
+      body: { phone_number },
     }),
+
+  verifyOtp: ({ phone_number, otp_code }) =>
+    request('/api/credentials/verify-otp', {
+      method: 'POST',
+      body: { phone_number, otp_code },
+    }),
+
+  // Classic signed token flow (supports phone/otp or legacy eligibility_code)
+  redeemEligibility: (codeOrObj) => {
+    const body = typeof codeOrObj === 'string' ? { eligibility_code: codeOrObj } : codeOrObj;
+    return request('/api/credentials/redeem', {
+      method: 'POST',
+      body,
+    });
+  },
 
   // Cryptographic Chaum RSA Blind Signature flow
   getBlindPublicKey: () => request('/api/credentials/public-key'),
 
-  blindSign: ({ eligibility_code, blinded_message }) =>
+  blindSign: ({ phone_number, otp_code, eligibility_code, blinded_message }) =>
     request('/api/credentials/blind-sign', {
       method: 'POST',
-      body: { eligibility_code, blinded_message },
+      body: { phone_number, otp_code, eligibility_code, blinded_message },
     }),
 
   submitReport: ({
     credential,
     blind_tag,
     blind_signature,
+    reporter_phone,
     company_name,
     category,
     title,
@@ -97,6 +113,7 @@ export const api = {
         credential,
         blind_tag,
         blind_signature,
+        reporter_phone,
         company_name,
         category,
         title,
@@ -104,6 +121,7 @@ export const api = {
         severity,
       },
     }),
+
 
   trackReport: ({ report_id, tracking_secret }) =>
     request('/api/reports/track', {

@@ -55,6 +55,7 @@ export default function ReportForm() {
   const blindTag = location.state?.blind_tag;
   const blindSignature = location.state?.blind_signature;
   const isBlind = location.state?.is_blind ?? false;
+  const reporterPhone = location.state?.reporter_phone;
 
   const [companies, setCompanies] = useState(DEFAULT_COMPANIES);
   const [selectedCompany, setSelectedCompany] = useState(DEFAULT_COMPANIES[0]);
@@ -117,12 +118,14 @@ export default function ReportForm() {
         credential: credential || undefined,
         blind_tag: blindTag || undefined,
         blind_signature: blindSignature || undefined,
+        reporter_phone: reporterPhone || undefined,
         company_name: finalCompany,
         category,
         title: title.trim(),
         description: description.trim(),
         severity,
       });
+
 
       navigate('/report/success', {
         state: {
@@ -154,13 +157,11 @@ export default function ReportForm() {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
             <span>
-              {isBlind
-                ? 'Chaum RSA Blind Ticket Active — Cryptographically Unlinkable'
-                : 'Zero-Knowledge Eligibility Verified — Single-Use Escrow'}
+              {reporterPhone ? `Verified Phone: ${reporterPhone} · Protected Escrow` : 'Phone Verified — Single-Use Escrow'}
             </span>
           </div>
           <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded">
-            Ombudsman Escrow Vault
+            Moderator-Only Escrow
           </span>
         </div>
 

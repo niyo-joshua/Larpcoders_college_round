@@ -1,18 +1,46 @@
 from pydantic import BaseModel, Field
 
 
+class SendOtpRequest(BaseModel):
+    phone_number: str = Field(min_length=7, max_length=32)
+
+
+
+class SendOtpResponse(BaseModel):
+    message: str
+    demo_otp: str
+    phone_number: str
+
+
+class VerifyOtpRequest(BaseModel):
+    phone_number: str = Field(min_length=7, max_length=32)
+    otp_code: str = Field(min_length=4, max_length=10)
+
+
+class VerifyOtpResponse(BaseModel):
+    credential: str
+    expires_in: int
+    blind_issuance_available: bool = True
+    phone_number: str
+
+
 class RedeemRequest(BaseModel):
-    eligibility_code: str = Field(min_length=4, max_length=128)
+    eligibility_code: str | None = None
+    phone_number: str | None = None
+    otp_code: str | None = None
 
 
 class RedeemResponse(BaseModel):
     credential: str
     expires_in: int
     blind_issuance_available: bool = True
+    phone_number: str | None = None
 
 
 class BlindSignRequest(BaseModel):
-    eligibility_code: str = Field(min_length=4, max_length=128)
+    eligibility_code: str | None = None
+    phone_number: str | None = None
+    otp_code: str | None = None
     blinded_message: str = Field(min_length=10)
 
 
@@ -27,6 +55,7 @@ class SubmitReportRequest(BaseModel):
     credential: str | None = None
     blind_tag: str | None = None
     blind_signature: str | None = None
+    reporter_phone: str | None = None
 
     company_name: str = "Acme Technologies"
     category: str
@@ -44,6 +73,7 @@ class SubmitReportResponse(BaseModel):
     is_spam: bool
     harm_score: int
     harm_flags: list[str]
+    reporter_phone: str | None = None
 
 
 class TrackRequest(BaseModel):
@@ -92,6 +122,7 @@ class ReportView(BaseModel):
     intervention_reason: str = ""
     whistleblower_safety_level: str = "protected_escrow"
     moderator_note: str = ""
+    reporter_phone: str | None = None
 
 
 class CompanyReportView(BaseModel):

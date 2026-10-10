@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AdminLayout } from '../components/Layout.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import { api } from '../api/client.js';
+import { useAdminAuth } from '../hooks/useAdminAuth.jsx';
 import {
   ShieldAlert,
   Building2,
@@ -16,8 +17,11 @@ import {
   Flame,
   ShieldCheck,
   CheckCircle2,
-  Users
+  Users,
+  Phone,
+  UserCheck
 } from 'lucide-react';
+
 
 const STATUSES = [
   { value: '', label: 'All statuses' },
@@ -29,6 +33,9 @@ const STATUSES = [
 ];
 
 export default function AdminDashboard() {
+  const { user } = useAdminAuth();
+  const isModerator = user?.role === 'moderator';
+
   const [viewMode, setViewMode] = useState('ombudsman'); // 'ombudsman' or 'company_view'
   const [reports, setReports] = useState([]);
   const [companyReports, setCompanyReports] = useState([]);
@@ -96,15 +103,29 @@ export default function AdminDashboard() {
         {/* Tier Switcher Navigation */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
           <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
-              3-Tier Ombudsman Governance Model
-            </span>
-            <div className="text-sm font-semibold text-slate-900 dark:text-white mt-0.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
+                3-Tier Ombudsman Governance Model
+              </span>
+              {isModerator ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
+                  <UserCheck className="w-3 h-3 text-emerald-600" />
+                  Moderator Clearance: Reporter Phone Numbers Visible
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-300 dark:border-slate-700">
+                  <Lock className="w-3 h-3 text-slate-500" />
+                  Administrator Session: Reporter Phone Numbers Masked
+                </span>
+              )}
+            </div>
+            <div className="text-sm font-semibold text-slate-900 dark:text-white mt-1">
               {viewMode === 'ombudsman'
                 ? 'Ombudsman Escrow Vault (Full Confidential Jurisdiction)'
                 : 'Company Representative Perspective (Sanitized Briefings Only)'}
             </div>
           </div>
+
 
           <div className="flex items-center gap-2 p-1 rounded-xl bg-slate-200 dark:bg-slate-800 self-start sm:self-auto">
             <button
@@ -232,6 +253,7 @@ export default function AdminDashboard() {
                         <th className="px-4 py-3">Report & Company</th>
                         <th className="px-4 py-3">Category</th>
                         <th className="px-4 py-3">Severity & Threat</th>
+                        <th className="px-4 py-3">Employee Contact</th>
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">Intervention</th>
                         <th className="px-4 py-3">Filed At</th>
@@ -279,6 +301,23 @@ export default function AdminDashboard() {
                               </div>
                             )}
                           </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            {isModerator ? (
+                              r.reporter_phone ? (
+                                <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                                  <Phone className="w-3 h-3 text-emerald-500" />
+                                  {r.reporter_phone}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-xs italic">Unspecified</span>
+                              )
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                <Lock className="w-3 h-3 text-slate-400" />
+                                <span>Masked (Moderator Only)</span>
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-3.5">
                             <StatusBadge status={r.status} />
                           </td>
@@ -299,6 +338,7 @@ export default function AdminDashboard() {
                       ))}
                     </tbody>
                   </table>
+
                 </div>
               )}
             </div>
