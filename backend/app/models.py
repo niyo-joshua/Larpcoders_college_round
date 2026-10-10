@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import String, Boolean, DateTime, Text, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -9,11 +9,21 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+class Company(Base):
+    __tablename__ = "companies"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    industry: Mapped[str] = mapped_column(String(64), default="Technology")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class Member(Base):
     __tablename__ = "members"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     member_code_hash: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    company_name: Mapped[str] = mapped_column(String(100), default="Acme Technologies")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -25,22 +35,42 @@ class Credential(Base):
     tag_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    issued_at_bucket: Mapped[datetime] = mapped_column(DateTime)
+    issued_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    is_blind: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Report(Base):
     __tablename__ = "reports"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    tracking_secret_hash: Mapped[str] = mapped_column(String(64))
+    company_name: Mapped[str] = mapped_column(String(100), default="Acme Technologies", index=True)
+    tracking_secret_hash: Mapped[str] = mapped_column(String(64), index=True)
+    duplicate_fingerprint: Mapped[str] = mapped_column(String(64), index=True)
+
     category: Mapped[str] = mapped_column(String(32))
     title: Mapped[str] = mapped_column(String(200))
+    # Confidential raw report (held in secure Ombudsman Escrow)
     description: Mapped[str] = mapped_column(Text)
-    severity: Mapped[str] = mapped_column(String(16))
-    status: Mapped[str] = mapped_column(String(16), default="received")
-    created_at_bucket: Mapped[datetime] = mapped_column(DateTime)
-    updated_at_bucket: Mapped[datetime] = mapped_column(DateTime)
+    # Sanitized partial summary visible to the company without whistleblower identity or style clues
+    executive_summary: Mapped[str] = mapped_column(Text, default="")
+
+    severity: Mapped[str] = mapped_column(String(16))  # low, medium, high, critical
+    status: Mapped[str] = mapped_column(String(32), default="received")  # received, under_review, company_notified, investigation_active, resolved
+
+    # Automated safety & moderation signals
+    is_spam: Mapped[bool] = mapped_column(Boolean, default=False)
+    harm_score: Mapped[int] = mapped_column(Integer, default=0)
+    harm_flags: Mapped[str] = mapped_column(String(255), default="")
+
+    # Ombudsman moderation & intervention
+    ombudsman_intervention: Mapped[bool] = mapped_column(Boolean, default=False)
+    intervention_reason: Mapped[str] = mapped_column(Text, default="")
+    whistleblower_safety_level: Mapped[str] = mapped_column(String(32), default="protected_escrow")
     moderator_note: Mapped[str] = mapped_column(Text, default="")
+
+    # Accurate timestamps
+    filed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class AdminUser(Base):
@@ -49,7 +79,7 @@ class AdminUser(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(16), default="admin")
+    role: Mapped[str] = mapped_column(String(32), default="ombudsman")  # ombudsman, moderator, company_reviewer
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 

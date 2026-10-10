@@ -1,109 +1,141 @@
-// Minimal API client.
-// Privacy notes:
-// - No cookies sent (credentials: 'omit').
-// - No referrer sent.
-// - No caching.
-// - Never console.log request bodies (may contain credentials).
+// Privacy-first API client
+// Guarantees:
+// - Zero cookies sent (credentials: 'omit')
+// - Zero referrer sent (referrerPolicy: 'no-referrer')
+// - Zero caching (cache: 'no-store')
+// - Admin token retained strictly in memory (never localStorage or cookies)
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_API_URL || '';
 
-// Admin token kept in memory only. Never localStorage.
 let adminToken = null;
 
 export function setAdminToken(token) {
-    adminToken = token;
+  adminToken = token;
 }
 
 export function getAdminToken() {
-    return adminToken;
+  return adminToken;
 }
 
 export function clearAdminToken() {
-    adminToken = null;
+  adminToken = null;
 }
 
 async function request(path, { method = 'GET', body, auth = false, headers = {} } = {}) {
-    const opts = {
-        method,
-        credentials: 'omit',
-        referrerPolicy: 'no-referrer',
-        cache: 'no-store',
-        headers: {
-            'Content-Type': 'application/json',
-            ...headers,
-        },
-    };
+  const opts = {
+    method,
+    credentials: 'omit',
+    referrerPolicy: 'no-referrer',
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+  };
 
-    if (auth && adminToken) {
-        opts.headers.Authorization = `Bearer ${adminToken}`;
-    }
+  if (auth && adminToken) {
+    opts.headers.Authorization = `Bearer ${adminToken}`;
+  }
 
-    if (body !== undefined) {
-        opts.body = JSON.stringify(body);
-    }
+  if (body !== undefined) {
+    opts.body = JSON.stringify(body);
+  }
 
-    const res = await fetch(`${BASE_URL}${path}`, opts);
-    const text = await res.text();
-    let data = null;
-    try {
-        data = text ? JSON.parse(text) : null;
-    } catch {
-        data = { raw: text };
-    }
+  const res = await fetch(`${BASE_URL}${path}`, opts);
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
 
-    if (!res.ok) {
-        const err = new Error((data && data.detail) || `Request failed (${res.status})`);
-        err.status = res.status;
-        err.data = data;
-        throw err;
-    }
+  if (!res.ok) {
+    const err = new Error((data && data.detail) || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
 
-    return data;
+  return data;
 }
 
 export const api = {
-    health: () => request('/api/health'),
+  health: () => request('/api/health'),
 
-    redeemEligibility: (eligibility_code) =>
-        request('/api/credentials/redeem', {
-            method: 'POST',
-            body: { eligibility_code },
-        }),
+  getCompanies: () => request('/api/reports/companies'),
 
-    submitReport: ({ credential, category, title, description, severity }) =>
-        request('/api/reports', {
-            method: 'POST',
-            body: { credential, category, title, description, severity },
-        }),
+  // Classic signed token flow
+  redeemEligibility: (eligibility_code) =>
+    request('/api/credentials/redeem', {
+      method: 'POST',
+      body: { eligibility_code },
+    }),
 
-    trackReport: ({ report_id, tracking_secret }) =>
-        request('/api/reports/track', {
-            method: 'POST',
-            body: { report_id, tracking_secret },
-        }),
+  // Cryptographic Chaum RSA Blind Signature flow
+  getBlindPublicKey: () => request('/api/credentials/public-key'),
 
-    adminLogin: ({ username, password }) =>
-        request('/api/admin/login', {
-            method: 'POST',
-            body: { username, password },
-        }),
+  blindSign: ({ eligibility_code, blinded_message }) =>
+    request('/api/credentials/blind-sign', {
+      method: 'POST',
+      body: { eligibility_code, blinded_message },
+    }),
 
-    adminListReports: (params = {}) => {
-        const qs = new URLSearchParams(
-            Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null))
-        ).toString();
+  submitReport: ({
+    credential,
+    blind_tag,
+    blind_signature,
+    company_name,
+    category,
+    title,
+    description,
+    severity,
+  }) =>
+    request('/api/reports', {
+      method: 'POST',
+      body: {
+        credential,
+        blind_tag,
+        blind_signature,
+        company_name,
+        category,
+        title,
+        description,
+        severity,
+      },
+    }),
 
-        return request(`/api/admin/reports${qs ? `?${qs}` : ''}`, { auth: true });
-    },
+  trackReport: ({ report_id, tracking_secret }) =>
+    request('/api/reports/track', {
+      method: 'POST',
+      body: { report_id, tracking_secret },
+    }),
 
-    adminGetReport: (id) => request(`/api/admin/reports/${id}`, { auth: true }),
+  adminLogin: ({ username, password }) =>
+    request('/api/admin/login', {
+      method: 'POST',
+      body: { username, password },
+    }),
 
-    adminUpdateReport: (id, patch) =>
-        request(`/api/admin/reports/${id}`, {
-            method: 'PATCH',
-            body: patch,
-            auth: true,
-        }),
+  adminListReports: (params = {}) => {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null))
+    ).toString();
 
-    adminAnalytics: () => request('/api/admin/analytics', { auth: true }),
+    return request(`/api/admin/reports${qs ? `?${qs}` : ''}`, { auth: true });
+  },
+
+  adminGetReport: (id) => request(`/api/admin/reports/${id}`, { auth: true }),
+
+  adminUpdateReport: (id, patch) =>
+    request(`/api/admin/reports/${id}`, {
+      method: 'PATCH',
+      body: patch,
+      auth: true,
+    }),
+
+  adminCompanyReports: (companyName) =>
+    request(`/api/admin/company/${encodeURIComponent(companyName)}`, { auth: true }),
+
+  adminAnalytics: () => request('/api/admin/analytics', { auth: true }),
 };

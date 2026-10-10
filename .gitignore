@@ -23,6 +23,7 @@ backend/.env
 # Environment & Secret files
 .env
 *.local
+*.pem
 
 # IDE & OS
 .vscode/

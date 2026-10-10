@@ -15,9 +15,10 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 @router.post("", response_model=SubmitReportResponse)
 def create(payload: SubmitReportRequest, request: Request, db: Session = Depends(get_db)):
+    # Rate limit by client IP to guard infrastructure, but NEVER store IP in database or report logs
     client = request.client.host if request.client else "unknown"
     if not check_rate_limit(f"submit:{client}", limit=20, window_seconds=60):
-        raise HTTPException(status_code=429, detail="Too many requests.")
+        raise HTTPException(status_code=429, detail="Too many submission attempts.")
     try:
         result = submit_report(db, payload.model_dump())
     except ReportError as e:
@@ -25,12 +26,21 @@ def create(payload: SubmitReportRequest, request: Request, db: Session = Depends
     return SubmitReportResponse(**result)
 
 
+@router.get("/companies")
+def list_companies(db: Session = Depends(get_db)):
+    from app.models import Company
+    from sqlalchemy import select
+    comps = db.execute(select(Company).where(Company.is_active == True)).scalars().all()
+    return [{"id": c.id, "name": c.name, "industry": c.industry} for c in comps]
+
+
 @router.post("/track", response_model=TrackResponse)
 def track(payload: TrackRequest, request: Request, db: Session = Depends(get_db)):
     client = request.client.host if request.client else "unknown"
     if not check_rate_limit(f"track:{client}", limit=30, window_seconds=60):
-        raise HTTPException(status_code=429, detail="Too many requests.")
+        raise HTTPException(status_code=429, detail="Too many tracking queries.")
     try:
         return TrackResponse(**track_report(db, payload.report_id, payload.tracking_secret))
     except ReportError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
